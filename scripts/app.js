@@ -1,6 +1,5 @@
 import d3 from 'd3'
-import React, { Component } from 'react'
-import ReactDOM from 'react-dom'
+import _ from 'lodash'
 
 import './home.scss'
 
@@ -9,14 +8,15 @@ const containerDom = document.querySelector('#app')
 const colors = d3.scale.category10()
 
 const drag = d3.behavior.drag()
-    .origin(d => d)
-    .on("drag", dragmove);
+    .origin(d => {return { x: d.x, y: d.y }})
+    .on('drag', dragmove)
 
-function dragmove() {
-  const x = d3.event.x
-  console.log(x)
+function dragmove(d) {
+  const { x, y } = d3.event
+  d.x = x
+  d.y = y
   d3.select(this)
-    .style('transform', `translate(${d3.event.x}px, ${d3.event.y}px)`)
+    .style('transform', `translate(${x}px, ${y}px)`)
 }
 
 const data = {
@@ -31,48 +31,34 @@ const data = {
 }
 //That is the reason why we need put x, y here
 //https://stackoverflow.com/questions/13657687/drag-behavior-returning-nan-in-d3
-const mockData =[
-  [{ text: 1, x: 0, y: 0 }, { text: 2, x: 0, y: 50 }],
-  [{ text: 3, x: 0, y: 0 }, { text: 4, x: 0, y: 50 }],
-]
-class Board extends Component {
-  componentDidMount() {
-    const groups =  d3.select(containerDom).append('svg')
-      .selectAll('g')
-      .data(mockData)
-      .enter()
-      .append('g')
-      .style('transform', (_, i) => `translate(${100 + 90 * i}px, 50px)`)[0]
+const parsedData = _.map(data, (d, i) => {
+  return { name: i, points: d.map((dd, ii) => {
+    return { text: dd, x: 0, y: 50 * ii}
+  })}
+})
 
-    mockData.forEach((d, i) => {
-      const card = d3.select(groups[i])
-        .selectAll('g')
-        .data(mockData[i])
-        .enter()
-        .append('g')
-        .attr("x", function(d,i){console.log(d)})
-        .style('transform', d => `translate(0, ${d.y}px)`)
-        .call(drag)
+const groups =  d3.select(containerDom).append('svg')
+  .selectAll('g')
+  .data(parsedData)
+  .enter()
+  .append('g')
+  .style('transform', (d, i) => `translate(${100 + 90 * i}px, 50px)`)[0]
 
-      card.append('rect').style({
-        width: '50px',
-        height: '30px',
-        fill: colors(i),
-      })
+parsedData.forEach((d, i) => {
+  const card = d3.select(groups[i])
+    .selectAll('g')
+    .data(parsedData[i].points)
+    .enter()
+    .append('g')
+    .style('transform', dd => `translate(0, ${dd.y}px)`)
+    .call(drag)
 
-      card.append('text').style(
-          'transform', (_, ind) => `translate(10px, 20px)`,
-        )
-        .text(d => d.text)
-    })
-  }
-  render() {
-    return (
-      <div>
-      </div>
-    )
-  }
-}
+  card.append('rect').style({
+    width: '50px',
+    height: '30px',
+    fill: colors(i),
+  })
 
-
-ReactDOM.render(<Board />, containerDom)
+  card.append('text').text(dd => dd.text)
+    .style('transform', (ddd, ind) => `translate(10px, 20px)`)
+})
